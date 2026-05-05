@@ -19,6 +19,6 @@ public class PedidoEntity {
 
     private PedidoStatus pedidoStatus = PedidoStatus.CRIADO;
 
-    @OneToMany(mappedBy = "pedido")
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL)
     private List<ItemPedidoEntity> itens;
 }

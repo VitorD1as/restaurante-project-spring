@@ -39,10 +39,7 @@ public class PratoController {
 
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public PratoDTO atualizarPrato(
-            @PathVariable @NotNull Long id,
-            @Valid @RequestBody PratoDTO pratoDTO
-    ) throws NotFoundException {
+    public PratoDTO atualizarPrato(@PathVariable @NotNull Long id, @Valid @RequestBody PratoDTO pratoDTO) throws NotFoundException {
         return pratoService.atualizarPrato(id, pratoDTO);
     }
 
