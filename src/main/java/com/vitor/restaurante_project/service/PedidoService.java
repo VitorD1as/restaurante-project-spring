@@ -11,14 +11,14 @@ import com.vitor.restaurante_project.dto.PedidoDTO;
 import com.vitor.restaurante_project.dto.PratoDTO;
 import com.vitor.restaurante_project.exception.BadRequestException;
 import com.vitor.restaurante_project.exception.NotFoundException;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,17 +45,86 @@ public class PedidoService {
             throw new BadRequestException("Pedido não pode receber itens nesse status");
         }
 
-            ItemPedidoEntity itemPedidoEntity = ItemPedidoEntity.builder()
+        Optional<ItemPedidoEntity> itemExistente = pedidoEntity.getItens().stream()
+                .filter(item -> item.getPrato().getId().equals(pratoEntity.getId()))
+                .findFirst();
+
+        if (itemExistente.isPresent()) {
+            ItemPedidoEntity item = itemExistente.get();
+            item.setQuantity(item.getQuantity() + quantity);
+        } else {
+            ItemPedidoEntity novoItem = ItemPedidoEntity.builder()
                     .pedido(pedidoEntity)
-                    .quantity(quantity)
                     .prato(pratoEntity)
+                    .quantity(quantity)
                     .build();
 
-        pedidoEntity.getItens().add(itemPedidoEntity);
+            pedidoEntity.getItens().add(novoItem);
+        }
+
         PedidoEntity save = pedidoRepository.save(pedidoEntity);
 
         return toDTO(save);
     }
+
+    public PedidoDTO atualizarStatusPedido(@NotNull Long pedidoId, PedidoStatus novoStatus) throws NotFoundException, BadRequestException {
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+
+        if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO ){
+            throw new BadRequestException("Pedido já finalizado!");
+        }
+
+        if(novoStatus.getOrdem() < pedido.getPedidoStatus().getOrdem()){
+            throw new BadRequestException("Não pode voltar o status do pedido");
+        }
+
+        if (novoStatus.getOrdem() - pedido.getPedidoStatus().getOrdem() > 1) {
+            throw new BadRequestException("Não pode pular etapas do pedido");
+        }
+        pedido.setPedidoStatus(novoStatus);
+
+        return toDTO(pedidoRepository.save(pedido));
+    }
+
+    public PedidoDTO finalizarPedido(@NotNull Long pedidoId) throws NotFoundException, BadRequestException {
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+
+        if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO){
+            throw new BadRequestException("Pedido já está finalizado!");
+        }
+
+        if(pedido.getItens() == null || pedido.getItens().isEmpty()){
+            throw new BadRequestException("Pedido não possui itens!");
+        }
+
+        pedido.setPedidoStatus(PedidoStatus.FINALIZADO);
+
+        BigDecimal total = pedido.getItens().stream()
+                .map(item -> item.getPrato().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        pedido.setTotal(total);
+        return toDTO(pedidoRepository.save(pedido));
+    }
+
+    public PedidoDTO cancelarPedido(@NotNull Long pedidoId) throws NotFoundException, BadRequestException {
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+
+        if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO){
+            throw new BadRequestException("Você não pode cancelar um pedido já finalizado!");
+        }
+
+        if(pedido.getPedidoStatus() == PedidoStatus.CANCELADO){
+            throw new BadRequestException("Você não pode cancelar um pedido já cancelado!");
+        }
+
+        pedido.setPedidoStatus(PedidoStatus.CANCELADO);
+
+        return toDTO(pedidoRepository.save(pedido));
+    }
+
+
+    // métodos auxiliares
 
     private PedidoDTO toDTO(PedidoEntity entity) {
         return PedidoDTO.builder()
