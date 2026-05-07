@@ -1,3 +1,20 @@
+server:
+  port: 8082
+
 spring:
   application:
     name: restaurante-project
+  datasource:
+    url: jdbc:mysql://localhost:3306/restaurante_project?createDatabaseIfNotExist=true
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  jwt:
+    expiration: ${JWT_EXPIRATION:900000} # 15 minutes
+    key: ${JWT_KEY:K5LuMxsARBNZ39iH5Kkw1cMAL=63-yCLsrR51p8IP-RlNPW-UQGUrRoLmA5ImJlYUcTLca$Ci5Uod9d9!uoaK9tokyGXx&#YElzVp&C1AyEsf=juChwT5KQ9VLALJdPQ7_DsSLXoLWew$Z403CNS=ctj53F2YA2VzU!v1#SV38JpG&w_5Tz-d8hL7df0GNBfp8Pes-_P_XnSj6bbPY0UWO7M-lJPfHhGn9tdera9G=C#2P6YiVdI3xI!$K2bC0POS6rw&f-Ep79zGdozOntMvzwnQrBNLpy8akqQTX6LMgJ7TxxX1cnUMBesFomJEQJ#_Ckwr-zf344dGz-0_LegDXXc
