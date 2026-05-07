@@ -99,7 +99,7 @@ spring:
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/restaurante-project.git
+git clone https://github.com/VitorD1as/restaurante-project-spring.git
 ```
 
 ### 2. Entre na pasta
