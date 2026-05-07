@@ -1,6 +1,5 @@
 package com.vitor.restaurante_project.controller;
 
-import com.vitor.restaurante_project.database.model.PratoEntity;
 import com.vitor.restaurante_project.dto.PratoDTO;
 import com.vitor.restaurante_project.exception.NotFoundException;
 import com.vitor.restaurante_project.service.PratoService;

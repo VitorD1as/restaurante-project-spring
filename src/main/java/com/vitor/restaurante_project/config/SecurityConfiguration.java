@@ -32,8 +32,11 @@ public class SecurityConfiguration {
                 .accessDeniedHandler((request, response, acessDeniedException) -> response.setStatus(HttpStatus.FORBIDDEN.value())))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/v1/auth/**").permitAll();
-                    auth.requestMatchers(HttpMethod.POST, "/v1/pedidos/**").hasRole("ADMIN")
-                            .anyRequest().authenticated();
+                    auth.requestMatchers(HttpMethod.POST, "/v1/pedidos/**").hasRole("ADMIN");
+                    auth.requestMatchers(HttpMethod.POST, "/v1/pratos/**").hasRole("ADMIN");
+                    auth.requestMatchers(HttpMethod.PUT, "/v1/pratos/**").hasRole("ADMIN");
+                    auth.requestMatchers(HttpMethod.DELETE, "/v1/pratos/**").hasRole("ADMIN");
+                    auth.anyRequest().authenticated();
                 }).addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
