@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -26,16 +27,24 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final PratoRepository pratoRepository;
 
-    public void criarPedido(){
+    public PedidoDTO criarPedido(){
         PedidoEntity pedido = PedidoEntity.builder()
                 .pedidoStatus(PedidoStatus.CRIADO)
                 .build();
         pedidoRepository.save(pedido);
-    }
 
-    public PedidoDTO adicionarItem(@NotNull Long pedidoId, @NotNull Long pratoId, @Positive Integer quantity) throws NotFoundException, BadRequestException {
-        PedidoEntity pedidoEntity = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
-        PratoEntity pratoEntity = pratoRepository.findById(pratoId).orElseThrow(() -> new NotFoundException("Prato não encontrado!"));
+        return toDTO(pedido);
+    }
+    public PedidoDTO adicionarItem(@NotNull Long pedidoId,
+                                   @NotNull Long pratoId,
+                                   @Positive Integer quantity)
+            throws NotFoundException, BadRequestException {
+
+        PedidoEntity pedidoEntity = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+
+        PratoEntity pratoEntity = pratoRepository.findById(pratoId)
+                .orElseThrow(() -> new NotFoundException("Prato não encontrado!"));
 
         if (pedidoEntity.getItens() == null) {
             pedidoEntity.setItens(new ArrayList<>());
@@ -53,18 +62,36 @@ public class PedidoService {
             ItemPedidoEntity item = itemExistente.get();
             item.setQuantity(item.getQuantity() + quantity);
         } else {
-            ItemPedidoEntity novoItem = ItemPedidoEntity.builder()
-                    .pedido(pedidoEntity)
-                    .prato(pratoEntity)
-                    .quantity(quantity)
-                    .build();
+
+            ItemPedidoEntity novoItem = new ItemPedidoEntity(
+                    null,
+                    pratoEntity,
+                    quantity,
+                    pedidoEntity
+            );
 
             pedidoEntity.getItens().add(novoItem);
         }
 
         PedidoEntity save = pedidoRepository.save(pedidoEntity);
-
         return toDTO(save);
+    }
+
+    public PedidoDTO buscarPorId(@NotNull Long id) throws NotFoundException {
+        PedidoEntity pedido = pedidoRepository.findById(id).orElseThrow(() -> new NotFoundException("Usuário não encontrado!"));
+        return toDTO(pedido);
+    }
+
+    public List<PedidoDTO> listarPedidos(){
+        return pedidoRepository.findAll()
+                .stream()
+                .map(this::toDTO)
+                .toList();
+    }
+
+    public List<PedidoDTO> buscarPorStatus(PedidoStatus pedidoStatus){
+        return pedidoRepository.findByPedidoStatus(pedidoStatus)
+                .stream().map(this::toDTO).toList();
     }
 
     public PedidoDTO atualizarStatusPedido(@NotNull Long pedidoId, PedidoStatus novoStatus) throws NotFoundException, BadRequestException {
@@ -123,32 +150,34 @@ public class PedidoService {
         return toDTO(pedidoRepository.save(pedido));
     }
 
+    public void deletarPedido(@NotNull Long pedidoId) throws NotFoundException, BadRequestException {
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado"));
 
-    // métodos auxiliares
+        if (pedido.getPedidoStatus() == PedidoStatus.FINALIZADO) {
+            throw new BadRequestException(
+                    "Pedido finalizado não pode ser excluído"
+            );
+        }
 
-    private PedidoDTO toDTO(PedidoEntity entity) {
-        return PedidoDTO.builder()
-                .id(entity.getId())
-                .pedidoStatus(entity.getPedidoStatus())
-                .itens(entity.getItens() == null
-                        ? new ArrayList<>()
-                        : entity.getItens().stream()
-                        .map(this::toItemDTO)
-                        .toList())
-                .build();
+        pedidoRepository.delete(pedido);
     }
 
-    private ItemPedidoDTO toItemDTO(ItemPedidoEntity entity) {
-        return ItemPedidoDTO.builder()
-                .id(entity.getId())
-                .quantity(entity.getQuantity())
-                .prato(
-                        PratoDTO.builder()
-                                .id(entity.getPrato().getId())
-                                .name(entity.getPrato().getName())
-                                .price(entity.getPrato().getPrice())
-                                .build()
-                )
-                .build();
+
+    private PedidoDTO toDTO(PedidoEntity pedido){
+        List<ItemPedidoDTO> itens = pedido.getItens().stream().map(
+                item -> new ItemPedidoDTO(item.getId(),
+                        new PratoDTO(
+                                item.getPrato().getId(),
+                                item.getPrato().getName(),
+                                item.getPrato().getPrice()
+                        ), item.getQuantity())
+        ).toList();
+
+        return new PedidoDTO(
+                pedido.getId(),
+                pedido.getPedidoStatus(),
+                itens
+        );
     }
+
 }

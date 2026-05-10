@@ -1,16 +1,3 @@
 package com.vitor.restaurante_project.dto;
-import jakarta.validation.constraints.NotBlank;
-import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@ToString
-public class LoginRequestDTO {
-    @NotBlank
-    private String email;
-    @NotBlank
-    private String senha;
-}
+public record LoginRequestDTO (String email, String senha){}

@@ -26,16 +26,24 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
         return http.csrf(
-                (AbstractHttpConfigurer::disable)
-        ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        (AbstractHttpConfigurer::disable)
+                ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-                .accessDeniedHandler((request, response, acessDeniedException) -> response.setStatus(HttpStatus.FORBIDDEN.value())))
+                        .accessDeniedHandler((request, response, acessDeniedException) -> response.setStatus(HttpStatus.FORBIDDEN.value())))
                 .authorizeHttpRequests(auth -> {
+
                     auth.requestMatchers("/v1/auth/**").permitAll();
-                    auth.requestMatchers(HttpMethod.POST, "/v1/pedidos/**").hasRole("ADMIN");
+
+                    auth.requestMatchers(HttpMethod.GET, "/v1/pratos/**").permitAll();
                     auth.requestMatchers(HttpMethod.POST, "/v1/pratos/**").hasRole("ADMIN");
                     auth.requestMatchers(HttpMethod.PUT, "/v1/pratos/**").hasRole("ADMIN");
                     auth.requestMatchers(HttpMethod.DELETE, "/v1/pratos/**").hasRole("ADMIN");
+
+                    auth.requestMatchers(HttpMethod.POST, "/v1/pedidos/**").authenticated();
+                    auth.requestMatchers(HttpMethod.GET, "/v1/pedidos/**").authenticated();
+                    auth.requestMatchers(HttpMethod.PUT, "/v1/pedidos/**").hasRole("ADMIN");
+                    auth.requestMatchers(HttpMethod.DELETE, "/v1/pedidos/**").hasRole("ADMIN");
+
                     auth.anyRequest().authenticated();
                 }).addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

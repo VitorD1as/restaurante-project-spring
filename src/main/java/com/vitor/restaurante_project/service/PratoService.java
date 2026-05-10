@@ -60,11 +60,4 @@ public class PratoService {
         pratoRepository.delete(entity);
     }
 
-    private PratoDTO toDTO(PratoEntity entity) {
-        return PratoDTO.builder()
-                .id(entity.getId())
-                .name(entity.getName())
-                .price(entity.getPrice())
-                .build();
-    }
 }
