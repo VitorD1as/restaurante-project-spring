@@ -1,6 +1,5 @@
 package com.vitor.restaurante_project.database.model;
 
-import com.vitor.restaurante_project.enums.RoleTypeEnums;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;

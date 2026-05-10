@@ -16,18 +16,20 @@ public class PratoService {
     private final PratoRepository pratoRepository;
 
     public PratoDTO criarPrato(PratoDTO pratoDTO) {
-        PratoEntity entity = PratoEntity.builder()
-                .name(pratoDTO.getName())
-                .price(pratoDTO.getPrice())
-                .build();
+
+        PratoEntity entity = new PratoEntity(
+                null,
+                pratoDTO.name(),
+                pratoDTO.price()
+        );
 
         PratoEntity saved = pratoRepository.save(entity);
 
-        pratoDTO.setId(saved.getId());
-        return pratoDTO;
+        return toDTO(saved);
     }
 
     public List<PratoDTO> listarPratos() {
+
         return pratoRepository.findAll()
                 .stream()
                 .map(this::toDTO)
@@ -35,6 +37,7 @@ public class PratoService {
     }
 
     public PratoDTO buscarPorId(Long id) throws NotFoundException {
+
         PratoEntity entity = pratoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Prato não encontrado"));
 
@@ -42,11 +45,12 @@ public class PratoService {
     }
 
     public PratoDTO atualizarPrato(Long id, PratoDTO pratoDTO) throws NotFoundException {
+
         PratoEntity entity = pratoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Prato não encontrado"));
 
-        entity.setName(pratoDTO.getName());
-        entity.setPrice(pratoDTO.getPrice());
+        entity.setName(pratoDTO.name());
+        entity.setPrice(pratoDTO.price());
 
         PratoEntity updated = pratoRepository.save(entity);
 
@@ -54,10 +58,19 @@ public class PratoService {
     }
 
     public void deletarPrato(Long id) throws NotFoundException {
+
         PratoEntity entity = pratoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Prato não encontrado"));
 
         pratoRepository.delete(entity);
     }
 
+    private PratoDTO toDTO(PratoEntity entity) {
+
+        return new PratoDTO(
+                entity.getId(),
+                entity.getName(),
+                entity.getPrice()
+        );
+    }
 }

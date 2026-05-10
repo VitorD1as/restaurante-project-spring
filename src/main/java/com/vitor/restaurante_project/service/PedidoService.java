@@ -24,17 +24,23 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class PedidoService {
+
     private final PedidoRepository pedidoRepository;
     private final PratoRepository pratoRepository;
 
     public PedidoDTO criarPedido(){
-        PedidoEntity pedido = PedidoEntity.builder()
-                .pedidoStatus(PedidoStatus.CRIADO)
-                .build();
-        pedidoRepository.save(pedido);
 
-        return toDTO(pedido);
+        PedidoEntity pedido = new PedidoEntity();
+
+        pedido.setPedidoStatus(PedidoStatus.CRIADO);
+        pedido.setTotal(BigDecimal.ZERO);
+        pedido.setItens(new ArrayList<>());
+
+        PedidoEntity save = pedidoRepository.save(pedido);
+
+        return toDTO(save);
     }
+
     public PedidoDTO adicionarItem(@NotNull Long pedidoId,
                                    @NotNull Long pratoId,
                                    @Positive Integer quantity)
@@ -59,30 +65,39 @@ public class PedidoService {
                 .findFirst();
 
         if (itemExistente.isPresent()) {
+
             ItemPedidoEntity item = itemExistente.get();
+
             item.setQuantity(item.getQuantity() + quantity);
+
         } else {
 
-            ItemPedidoEntity novoItem = new ItemPedidoEntity(
-                    null,
-                    pratoEntity,
-                    quantity,
-                    pedidoEntity
-            );
+            ItemPedidoEntity novoItem = new ItemPedidoEntity();
+
+            novoItem.setPrato(pratoEntity);
+            novoItem.setQuantity(quantity);
+            novoItem.setPedido(pedidoEntity);
 
             pedidoEntity.getItens().add(novoItem);
         }
 
+        pedidoEntity.setTotal(calcularTotal(toDTO(pedidoEntity)));
+
         PedidoEntity save = pedidoRepository.save(pedidoEntity);
+
         return toDTO(save);
     }
 
     public PedidoDTO buscarPorId(@NotNull Long id) throws NotFoundException {
-        PedidoEntity pedido = pedidoRepository.findById(id).orElseThrow(() -> new NotFoundException("Usuário não encontrado!"));
+
+        PedidoEntity pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+
         return toDTO(pedido);
     }
 
     public List<PedidoDTO> listarPedidos(){
+
         return pedidoRepository.findAll()
                 .stream()
                 .map(this::toDTO)
@@ -90,14 +105,21 @@ public class PedidoService {
     }
 
     public List<PedidoDTO> buscarPorStatus(PedidoStatus pedidoStatus){
+
         return pedidoRepository.findByPedidoStatus(pedidoStatus)
-                .stream().map(this::toDTO).toList();
+                .stream()
+                .map(this::toDTO)
+                .toList();
     }
 
-    public PedidoDTO atualizarStatusPedido(@NotNull Long pedidoId, PedidoStatus novoStatus) throws NotFoundException, BadRequestException {
-        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+    public PedidoDTO atualizarStatusPedido(@NotNull Long pedidoId,
+                                           PedidoStatus novoStatus)
+            throws NotFoundException, BadRequestException {
 
-        if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO ){
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+
+        if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO){
             throw new BadRequestException("Pedido já finalizado!");
         }
 
@@ -105,16 +127,22 @@ public class PedidoService {
             throw new BadRequestException("Não pode voltar o status do pedido");
         }
 
-        if (novoStatus.getOrdem() - pedido.getPedidoStatus().getOrdem() > 1) {
+        if(novoStatus.getOrdem() - pedido.getPedidoStatus().getOrdem() > 1){
             throw new BadRequestException("Não pode pular etapas do pedido");
         }
+
         pedido.setPedidoStatus(novoStatus);
 
-        return toDTO(pedidoRepository.save(pedido));
+        PedidoEntity save = pedidoRepository.save(pedido);
+
+        return toDTO(save);
     }
 
-    public PedidoDTO finalizarPedido(@NotNull Long pedidoId) throws NotFoundException, BadRequestException {
-        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+    public PedidoDTO finalizarPedido(@NotNull Long pedidoId)
+            throws NotFoundException, BadRequestException {
+
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
 
         if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO){
             throw new BadRequestException("Pedido já está finalizado!");
@@ -127,15 +155,22 @@ public class PedidoService {
         pedido.setPedidoStatus(PedidoStatus.FINALIZADO);
 
         BigDecimal total = pedido.getItens().stream()
-                .map(item -> item.getPrato().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .map(item -> item.getPrato().getPrice()
+                        .multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         pedido.setTotal(total);
-        return toDTO(pedidoRepository.save(pedido));
+
+        PedidoEntity save = pedidoRepository.save(pedido);
+
+        return toDTO(save);
     }
 
-    public PedidoDTO cancelarPedido(@NotNull Long pedidoId) throws NotFoundException, BadRequestException {
-        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
+    public PedidoDTO cancelarPedido(@NotNull Long pedidoId)
+            throws NotFoundException, BadRequestException {
+
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado!"));
 
         if(pedido.getPedidoStatus() == PedidoStatus.FINALIZADO){
             throw new BadRequestException("Você não pode cancelar um pedido já finalizado!");
@@ -147,37 +182,58 @@ public class PedidoService {
 
         pedido.setPedidoStatus(PedidoStatus.CANCELADO);
 
-        return toDTO(pedidoRepository.save(pedido));
+        PedidoEntity save = pedidoRepository.save(pedido);
+
+        return toDTO(save);
     }
 
-    public void deletarPedido(@NotNull Long pedidoId) throws NotFoundException, BadRequestException {
-        PedidoEntity pedido = pedidoRepository.findById(pedidoId).orElseThrow(() -> new NotFoundException("Pedido não encontrado"));
+    public void deletarPedido(@NotNull Long pedidoId)
+            throws NotFoundException, BadRequestException {
+
+        PedidoEntity pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado"));
 
         if (pedido.getPedidoStatus() == PedidoStatus.FINALIZADO) {
-            throw new BadRequestException(
-                    "Pedido finalizado não pode ser excluído"
-            );
+            throw new BadRequestException("Pedido finalizado não pode ser excluído");
         }
 
         pedidoRepository.delete(pedido);
     }
 
-
     private PedidoDTO toDTO(PedidoEntity pedido){
-        List<ItemPedidoDTO> itens = pedido.getItens().stream().map(
-                item -> new ItemPedidoDTO(item.getId(),
-                        new PratoDTO(
-                                item.getPrato().getId(),
-                                item.getPrato().getName(),
-                                item.getPrato().getPrice()
-                        ), item.getQuantity())
-        ).toList();
+
+        List<ItemPedidoDTO> itens;
+
+        if(pedido.getItens() == null){
+            itens = List.of();
+        } else {
+
+            itens = pedido.getItens().stream()
+                    .map(item -> new ItemPedidoDTO(
+                            item.getId(),
+                            new PratoDTO(
+                                    item.getPrato().getId(),
+                                    item.getPrato().getName(),
+                                    item.getPrato().getPrice()
+                            ),
+                            item.getQuantity()
+                    ))
+                    .toList();
+        }
 
         return new PedidoDTO(
                 pedido.getId(),
                 pedido.getPedidoStatus(),
-                itens
+                itens,
+                pedido.getTotal()
         );
     }
 
+    public BigDecimal calcularTotal(PedidoDTO pedidoDTO){
+
+        return pedidoDTO.itens().stream()
+                .map(item -> item.prato().price()
+                        .multiply(BigDecimal.valueOf(item.quantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

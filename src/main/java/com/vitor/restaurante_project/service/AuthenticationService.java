@@ -24,42 +24,61 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
+
     private final UserRepository userRepository;
     private final RolesRepository rolesRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final TokenProvider tokenProvider;
+
     @Value("${spring.jwt.expiration}")
     private Long expirationTime;
 
     public void register(RegisterRequestDTO registerRequestDTO) throws BadRequestException {
-        UserEntity user = userRepository.findByEmail(registerRequestDTO.getEmail()).orElse(null);
+
+        UserEntity user = userRepository.findByEmail(registerRequestDTO.email())
+                .orElse(null);
 
         if(user != null){
             throw new BadRequestException("Usuário já está cadastrado!");
         }
 
-        RolesEntity role = rolesRepository.findByNome(RoleTypeEnums.ROLE_CLIENTE.name()).orElseGet(
-                () -> rolesRepository.save(RolesEntity.builder()
-                        .nome(RoleTypeEnums.ROLE_CLIENTE.name())
-                        .build()));
+        RolesEntity role = rolesRepository.findByNome(RoleTypeEnums.ROLE_CLIENTE.name())
+                .orElseGet(() -> {
 
-        userRepository.save(UserEntity.builder()
-                .name(registerRequestDTO.getName())
-                .email(registerRequestDTO.getEmail())
-                .roles(Set.of(role))
-                .password(passwordEncoder.encode(registerRequestDTO.getSenha()))
-                .build());
+                    RolesEntity newRole = new RolesEntity();
+                    newRole.setNome(RoleTypeEnums.ROLE_CLIENTE.name());
 
+                    return rolesRepository.save(newRole);
+                });
+
+        UserEntity newUser = new UserEntity();
+
+        newUser.setName(registerRequestDTO.name());
+        newUser.setEmail(registerRequestDTO.email());
+        newUser.setRoles(Set.of(role));
+        newUser.setPassword(passwordEncoder.encode(registerRequestDTO.senha()));
+
+        userRepository.save(newUser);
     }
 
     public TokenResponseDTO login(LoginRequestDTO loginRequestDTO) throws BadRequestException {
+
         try{
+
             Authentication authenticate = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequestDTO.getEmail(), loginRequestDTO.getSenha()));
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequestDTO.email(),
+                            loginRequestDTO.senha()
+                    )
+            );
+
             String token = tokenProvider.generateToken(authenticate);
+
             return new TokenResponseDTO(token, expirationTime);
+
         } catch(BadCredentialsException e){
+
             throw new BadRequestException("Credenciais inválidas");
         }
     }
